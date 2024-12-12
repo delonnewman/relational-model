@@ -1,10 +1,5 @@
 #!/usr/bin/env ruby
 
-require 'erb'
-require 'pathname'
-require 'cgi'
+require_relative '../lib/renderer'
 
-root = Pathname(__dir__).join('..')
-steps = root.join('src').glob('*.js').map(&:read)
-content = root.join('index.html.erb').read
-puts ERB.new(content).result(binding)
+Renderer.new.render

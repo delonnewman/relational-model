@@ -29,14 +29,7 @@
  }
 </style>
 <body>
-    <% steps[0].split(%r{\n\n|// eval}).each do |snippet| %>
-        <div class="snippet">
-            <div class="snippet-content">
-                <pre class="snippet-code"><%= snippet %></pre>
-            </div>
-            <button type="button">evaluate</button>
-        </div>
-    <% end %>
+    <%= content %>
     <script>
      function print(object) {
          return JSON.stringify(object, null, 2);
