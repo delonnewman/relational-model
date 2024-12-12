@@ -1,1 +1,1 @@
-A tutorial about Relational Algebra
+Learning about Relational Algebra by Building it
