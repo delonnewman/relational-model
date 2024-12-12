@@ -1,1 +1,1 @@
-Learning about Relational Algebra by Building it
+Learning About Relational Algebra by Building It
