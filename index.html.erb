@@ -1,0 +1,200 @@
+<style>
+ :root {
+     --drn-border-color: #ddd;
+     --drn-muted-text-color: gray;
+ }
+
+ .snippet .snippet-content {
+     display: flex;
+     align-items: start;
+     gap: 20px;
+     width: 100%;
+ }
+
+ .snippet .snippet-code {
+     border: solid var(--drn-border-color) 1px;
+     border-radius: 5px;
+     padding: 5px;
+     width: 640px;
+     min-height: 100%;
+     overflow: scroll;
+ }
+
+ .snippet .snippet-changed {
+     border: solid red 1px;
+ }
+
+ .snippet .snippet-result {
+     color: var(--drn-muted-text-color);
+ }
+</style>
+<body>
+    <% steps[0].split(%r{\n\n|// eval}).each do |snippet| %>
+        <div class="snippet">
+            <div class="snippet-content">
+                <pre class="snippet-code"><%= snippet %></pre>
+            </div>
+            <button type="button">evaluate</button>
+        </div>
+    <% end %>
+    <script>
+     function print(object) {
+         return JSON.stringify(object, null, 2);
+     }
+
+     class EvaluationContext {
+         #snippets;
+         #currentId;
+
+         constructor() {
+             this.#snippets = [];
+             this.#currentId = 0;
+         }
+
+         addSnippet(element) {
+             this.#currentId++;
+             this.#snippets.push(new Snippet(this, element, this.#currentId).setup());
+         }
+
+         evaluateAll() {
+             this.evaluate(undefined);
+         }
+
+         evaluate(id) {
+             const evaled = [];
+             for (const snippet of this.#snippets) {
+                 evaled.push(snippet.code);
+                 const accumulated = evaled.join(';\n')
+                 try {
+                     const result = print(eval(accumulated));
+                     snippet.updateResult(result);
+                 } catch (error) {
+                     snippet.updateResult(`${error.message}: ${error.stack}`);
+                 }
+                 if (id === snippet.id) break;
+             };
+         }
+     }
+
+     const CHANGE_EVENT = new Event('change');
+     const CHANGE_CLASS = 'snippet-changed';
+
+     class CodeEditor {
+         #snippet;
+         #unchangingTimeout;
+         element;
+
+         constructor(snippet, element) {
+             this.#snippet = snippet;
+             this.element = element;
+             this.#unchangingTimeout = undefined;
+         }
+
+         get code() {
+             return this.element.innerText;
+         }
+
+         isUnchanging() {
+             return this.#unchangingTimeout !== undefined;
+         }
+
+         clearUnchangingTimeout() {
+             if (this.#unchangingTimeout) {
+                 clearTimeout(this.#unchangingTimeout);
+             }
+         }
+
+         setup() {
+             this.element.setAttribute('contenteditable', true);
+             this.element.setAttribute('spellcheck', false);
+             this.element.addEventListener('change', () => { this.#snippet.evaluate() });
+
+             let currentCode = this.code;
+             setInterval(() => {
+                 if (currentCode !== this.code) {
+                     currentCode = this.code;
+                     this.element.dispatchEvent(CHANGE_EVENT);
+                     this.assertIsChanged();
+                     this.clearUnchangingTimeout();
+                 } else if (this.isChanged() && !this.isUnchanging()) {
+                     this.#unchangingTimeout = setTimeout(() => { this.assertIsNotChanged() }, 1000);
+                 }
+             }, 500);
+         }
+
+         assertIsChanged() {
+            this.element.classList.add(CHANGE_CLASS);
+         }
+
+         assertIsNotChanged() {
+            this.element.classList.remove(CHANGE_CLASS);
+         }
+
+         isChanged() {
+            return this.element.classList.contains(CHANGE_CLASS);
+         }
+     }
+
+     class Snippet {
+         id;
+         element;
+         #context;
+         #codeEditor;
+
+         constructor(context, element, id) {
+             this.id = id;
+             this.element = element;
+             this.#context = context;
+             this.#codeEditor = new CodeEditor(this, this.codeElement);
+         }
+
+         setup() {
+             this.element.setAttribute('data-id', this.id);
+
+             this.buttonElement.addEventListener('click', () => { this.evaluate() });
+             this.#codeEditor.setup();
+
+             return this;
+         }
+
+         evaluate() {
+             this.#context.evaluate(this.id);
+         }
+
+         updateResult(result) {
+             this.resultElement.innerText = result;
+         }
+
+         get code() {
+             return this.codeElement.innerText;
+         }
+
+         get resultElement() {
+             const elem = this.element.querySelector('.snippet-result');
+             if (elem) return elem;
+
+             const container = document.createElement('pre');
+             container.setAttribute('class', 'snippet-result');
+             this.codeElement.after(container);
+
+             return container;
+         }
+
+         get codeElement() {
+             return this.element.querySelector('.snippet-code');
+         }
+
+         get buttonElement() {
+             return this.element.querySelector('button');
+         }
+     }
+
+     document.body.onload = () => {
+         const context = new EvaluationContext();
+         document.querySelectorAll('.snippet').forEach((element) => {
+             context.addSnippet(element);
+         });
+         context.evaluateAll();
+     };
+    </script>
+</body>

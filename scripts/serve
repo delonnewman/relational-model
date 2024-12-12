@@ -1,0 +1,17 @@
+#!/usr/bin/env ruby
+
+require 'erb'
+require 'pathname'
+require 'webrick'
+
+def root = Pathname(__dir__).join('..')
+def steps = root.join('src').glob('*.js').map(&:read)
+def content = root.join('index.html.erb').read
+def template = ERB.new(content)
+def render = template.result(binding)
+
+server = WEBrick::HTTPServer.new(Port: 8000)
+server.mount_proc '/' do |_req, res|
+  res.body = render
+end
+server.start
